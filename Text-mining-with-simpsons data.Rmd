@@ -1,0 +1,1119 @@
+
+# Ten Most Active Characters
+
+We want to find out which characters have spoken the **most** in the episodes. Here the top Ten are being displayed.          
+
+```{r, message=FALSE, warning=FALSE}
+
+library(tidyverse)
+library(tidytext)
+library(stringr)
+library(DT)
+library(igraph)
+library(ggraph)
+library(tm)
+library(topicmodels)
+library('wordcloud')
+library(caret)
+
+rm(list=ls())
+
+fillColor = "#FFA07A"
+fillColor2 = "#F1C40F"
+
+Scripts = read_csv("../input/simpsons_script_lines.csv")
+
+Characters = read_csv("../input/simpsons_characters.csv")
+
+Scripts$character_id = as.integer(Scripts$character_id)
+
+ScriptsCharacters = left_join(Scripts,Characters,
+                                                  by = c("character_id" = "id") )
+
+ScriptsCharacters = ScriptsCharacters %>% 
+  filter(!is.na(name))
+
+TopCharacters = ScriptsCharacters %>%
+  group_by(name) %>%
+  tally(sort = TRUE)
+
+ggplot(head(TopCharacters,10), aes(x = reorder(name, n), 
+                     y = n)) +
+  geom_bar(stat='identity',colour="white", fill = fillColor) +
+  geom_text(aes(x = name, y = 1, label = paste0("(",n,")",sep="")),
+            hjust=0, vjust=.5, size = 4, colour = 'black',
+            fontface = 'bold') +
+  labs(x = 'name', y = 'Count Of Sentences', title = 'Ten Most Active Characters') +
+  coord_flip() + 
+  theme_bw()
+
+```
+
+
+
+#Next Ten Most Active Characters
+
+
+```{r, message=FALSE, warning=FALSE}
+
+ggplot(TopCharacters[10:20,], aes(x = reorder(name, n), 
+                     y = n)) +
+  geom_bar(stat='identity',colour="white", fill = fillColor2) +
+  geom_text(aes(x = name, y = 1, label = paste0("(",n,")",sep="")),
+            hjust=0, vjust=.5, size = 4, colour = 'black',
+            fontface = 'bold') +
+  labs(x = 'name', y = 'Count Of Sentences', title = 'Next Ten Most Active Characters') +
+  coord_flip() + 
+  theme_bw()
+
+```
+
+
+#Top Twenty most Common Words
+
+We examine the Top Twenty Most Common words and show them in a bar graph.               
+
+
+```{r, message=FALSE, warning=FALSE}
+SC = ScriptsCharacters %>%
+   select(id,name,normalized_text)
+
+SC %>%
+  unnest_tokens(word, normalized_text) %>%
+  filter(!word %in% stop_words$word) %>%
+  count(word,sort = TRUE) %>%
+  ungroup() %>%
+  mutate(word = factor(word, levels = rev(unique(word)))) %>%
+  head(20) %>%
+  
+  ggplot(aes(x = word,y = n)) +
+  geom_bar(stat='identity',colour="white", fill =fillColor) +
+  geom_text(aes(x = word, y = 1, label = paste0("(",n,")",sep="")),
+            hjust=0, vjust=.5, size = 4, colour = 'black',
+            fontface = 'bold') +
+  labs(x = 'Word', y = 'Word Count', 
+       title = 'Top 20 most Common Words') +
+  coord_flip() + 
+  theme_bw()
+
+
+```
+
+## WordCloud of the Common Words         
+
+```{r, message=FALSE, warning=FALSE}
+
+SC %>%
+  unnest_tokens(word, normalized_text) %>%
+  filter(!word %in% stop_words$word) %>%
+  count(word,sort = TRUE) %>%
+  ungroup()  %>%
+  head(50) %>%
+  
+  with(wordcloud(word, n, max.words = 50,colors=brewer.pal(8, "Dark2")))
+
+```
+
+#Parts of Speech
+
+We use the **Parts of Speech** dataset to have a glimpse of the different Parts of Speech available.
+
+```{r,message=FALSE,warning=FALSE}
+
+glimpse(parts_of_speech)
+
+```
+
+##Different Parts of Speech
+
+```{r,message=FALSE,warning=FALSE}
+
+unique(parts_of_speech$pos)
+
+```
+
+
+##Parts of Speech analysis{.tabset .tabset-fade .tabset-pills} 
+
+
+###Word Cloud - adjectives
+
+We find **ill,home,baby,bad** are some of the most commonly occurring adjectives.      
+
+
+```{r,message=FALSE,warning=FALSE}
+
+SC %>%
+  unnest_tokens(word, normalized_text) %>%
+  filter(!word %in% stop_words$word) %>%
+  
+  left_join(parts_of_speech) %>%
+  filter(pos == "Adjective") %>%
+  
+  count(word,sort = TRUE) %>%
+  ungroup()  %>%
+  head(50) %>%
+  
+  with(wordcloud(word, n, max.words = 50,colors=brewer.pal(8, "Dark2")))
+
+```
+
+###Script Lines with baby
+
+```{r,message=FALSE,warning=FALSE}
+
+baby_lines = SC %>%
+  filter(str_detect(normalized_text,"baby")) %>%
+  head(10)
+
+datatable(baby_lines, style="bootstrap", class="table-condensed", options = list(dom = 'tp',scrollX = TRUE))
+
+```
+
+
+###Transitive Verb Word Cloud
+
+```{r,message = FALSE,warning = FALSE}
+
+SC %>%
+  unnest_tokens(word, normalized_text) %>%
+  filter(!word %in% stop_words$word) %>%
+  
+  left_join(parts_of_speech) %>%
+  filter(pos == "Verb (transitive)") %>%
+  
+  count(word,sort = TRUE) %>%
+  ungroup()  %>%
+  head(50) %>%
+  
+  with(wordcloud(word, n, max.words = 50,colors=brewer.pal(8, "Dark2")))
+  
+```
+
+
+###InTransitive Verb Word Cloud
+
+```{r,message = FALSE,warning = FALSE}
+
+SC %>%
+  unnest_tokens(word, normalized_text) %>%
+  filter(!word %in% stop_words$word) %>%
+  
+  left_join(parts_of_speech) %>%
+  filter(pos == "Verb (intransitive)") %>%
+  
+  count(word,sort = TRUE) %>%
+  ungroup()  %>%
+  head(50) %>%
+  
+  with(wordcloud(word, n, max.words = 50,colors=brewer.pal(8, "Dark2")))
+  
+```
+
+
+###Noun Word Cloud
+
+```{r,message = FALSE,warning = FALSE}
+
+SC %>%
+  unnest_tokens(word, normalized_text) %>%
+  filter(!word %in% stop_words$word) %>%
+  
+  left_join(parts_of_speech) %>%
+  filter(pos == "Noun Phrase") %>%
+  
+  count(word,sort = TRUE) %>%
+  ungroup()  %>%
+  head(50) %>%
+  
+  with(wordcloud(word, n, max.words = 50,colors=brewer.pal(8, "Dark2")))
+  
+```
+
+
+
+
+#TF-IDF
+
+We wish to find out the important words which are spoken by the characters. 
+
+
+## Twenty Most Important words for the Twenty Most Active Characters
+
+Here using **TF-IDF** , we investigate the **Twenty Most Important words** for the **Twenty Most Active Characters.**                     
+
+
+```{r, message=FALSE, warning=FALSE}
+
+#Get the Top 20 Characters
+Top20Characters = head(TopCharacters)$name
+
+##################################################################################
+
+# Prepare for the bind_tf_idf function
+
+##################################################################################
+
+
+SCWords <- SC %>%
+  unnest_tokens(word, normalized_text) %>%
+  count(name, word, sort = TRUE) %>%
+  ungroup()
+
+total_words <- SCWords %>% 
+  group_by(name) %>% 
+  summarize(total = sum(n))
+
+SCWords <- left_join(SCWords, total_words)
+
+SCWordsFull <- SCWords %>%
+  filter(!is.na(name)) %>%
+  bind_tf_idf(word, name, n)
+
+#Now we are ready to use the bind_tf_idf which computes the tf-idf for each term.    
+
+SCWords <- SCWords %>% filter( name %in% Top20Characters) %>%
+  bind_tf_idf(word, name, n)
+
+plot_SCWords <- SCWords %>%
+  arrange(desc(tf_idf)) %>%
+  mutate(word = factor(word, levels = rev(unique(word))))
+
+plot_SCWords %>% 
+  top_n(20) %>%
+  ggplot(aes(word, tf_idf, fill = name)) +
+  geom_col() +
+  labs(x = NULL, y = "tf-idf") +
+  coord_flip() +
+  theme_bw()
+
+#Choose words with low IDF
+SCWords2 <- SCWords %>%
+  bind_tf_idf(word, name, n)
+
+LowIDF = SCWords2 %>%
+  arrange((idf)) %>%
+  select(word,idf)
+
+#Get the Unique Words with LowIDF
+UniqueLowIDF = unique(LowIDF$word)
+
+```
+
+We observe that the most important word for **Bart** and **Lisa** is **mom**. This is obvious since both Bart and Lisa are children of Marge and Homer.   
+
+
+
+## Marge Important Words
+
+We investigate here the most important words spoken by **Marge**
+```{r, message=FALSE, warning=FALSE}
+
+keywordHomie = 'homie'
+
+ScriptsCharactersMarge = ScriptsCharacters %>% 
+  filter(name == 'Marge Simpson') %>% 
+  filter(str_detect(normalized_text,keywordHomie) ) 
+
+
+MargeAdressesTo <- data.frame(Name = character(), Text = character())
+
+
+for(i in 1: 5)
+{
+  MargeNextSenceAfterHomie = ScriptsCharacters %>%
+    filter(id > ScriptsCharactersMarge[i,]$id - 1) %>% 
+    filter(id < (ScriptsCharactersMarge[i,]$id +2) ) %>%
+    select(name,raw_text)
+  
+  MargeAdressesTo = rbind(MargeAdressesTo,MargeNextSenceAfterHomie)
+}
+
+```
+
+
+
+```{r, result='asis', echo=FALSE}
+
+datatable(MargeAdressesTo, style="bootstrap", class="table-condensed", options = list(dom = 'tp',scrollX = TRUE))
+```
+
+## Moe Important Words
+
+We investigate here the most important words spoken by **Moe**. 
+
+### Word focus - "Midge"
+
+```{r, message=FALSE, warning=FALSE}
+
+keywordMidge = 'midge'
+
+ScriptsCharactersMoe = ScriptsCharacters %>% 
+  filter(name == 'Moe Szyslak') %>% 
+  filter(str_detect(normalized_text,keywordMidge) ) 
+
+
+MoeAdressesTo <- data.frame(Name = character(), Text = character())
+
+
+for(i in 1: 5)
+{
+  MoeNextSenceAfterMidge = ScriptsCharacters %>%
+    filter(id > ScriptsCharactersMoe[i,]$id - 1) %>% 
+    filter(id < (ScriptsCharactersMoe[i,]$id +2) ) %>%
+    select(name,raw_text)
+  
+  MoeAdressesTo = rbind(MoeAdressesTo,MoeNextSenceAfterMidge)
+}
+
+```
+
+
+```{r, result='asis', echo=FALSE}
+
+datatable(MoeAdressesTo, style="bootstrap", class="table-condensed", options = list(dom = 'tp',scrollX = TRUE))
+
+```
+
+#Relationship among words
+
+Til now, we have explored the most important words for a character. Now, we will explore the relationship between words. 
+
+```{r, message=FALSE, warning=FALSE}
+
+count_bigrams <- function(dataset) {
+  dataset %>%
+    unnest_tokens(bigram, normalized_text, token = "ngrams", n = 2) %>%
+    separate(bigram, c("word1", "word2"), sep = " ") %>%
+    filter(!word1 %in% stop_words$word,
+           !word2 %in% stop_words$word) %>%
+    count(word1, word2, sort = TRUE)
+}
+
+
+visualize_bigrams <- function(bigrams) {
+  set.seed(2016)
+  a <- grid::arrow(type = "closed", length = unit(.15, "inches"))
+  
+  bigrams %>%
+    graph_from_data_frame() %>%
+    ggraph(layout = "fr") +
+    geom_edge_link(aes(edge_alpha = n), show.legend = FALSE, arrow = a) +
+    geom_node_point(color = "lightblue", size = 5) +
+    geom_node_text(aes(label = name), vjust = 1, hjust = 1) +
+    theme_void()
+  
+}
+
+visualize_bigrams_individual <- function(bigrams) {
+  set.seed(2016)
+  a <- grid::arrow(type = "closed", length = unit(.15, "inches"))
+  
+  bigrams %>%
+    graph_from_data_frame() %>%
+    ggraph(layout = "fr") +
+    geom_edge_link(aes(edge_alpha = n), show.legend = FALSE, arrow = a,end_cap = circle(.07, 'inches')) +
+    geom_node_point(color = "lightblue", size = 5) +
+    geom_node_text(aes(label = name), vjust = 1, hjust = 1) +
+    theme_void()
+}
+
+SCWords <- SC %>%
+  count_bigrams()
+
+SCWords %>%
+  filter(n > 50) %>%
+  visualize_bigrams()
+
+```
+
+
+##Dont word network graph
+
+```{r, message=FALSE, warning=FALSE}
+
+individual_words_bigrams <- function(SC, word1Value, word2Value) {
+  x_Words1 <- SC %>%
+    count_bigrams() %>%
+    filter(word1 == word1Value)
+  
+  x_Words2 <- SC %>%
+    count_bigrams() %>%
+    filter(word2 == word2Value)
+  
+  x_full = rbind(x_Words1,x_Words2)
+}
+
+
+individual_words_bigrams(SC,"dont","dont") %>%
+  filter(n > 20) %>%
+  visualize_bigrams_individual()
+
+```
+
+
+#Sentiment Analysis
+
+## Postive Characters and Not so Positive Characters
+
+
+
+```{r, message=FALSE, warning=FALSE}
+
+visualize_sentiments <- function(SCWords) {
+  SCWords_sentiments <- SCWords %>%
+    inner_join(get_sentiments("afinn"), by = "word") %>%
+    group_by(name) %>%
+    summarize(score = sum(score * n) / sum(n)) %>%
+    arrange(desc(score))
+  
+  SCWords_sentiments %>%
+    mutate(name = reorder(name, score)) %>%
+    ggplot(aes(name, score, fill = score > 0)) +
+    geom_col(show.legend = TRUE) +
+    coord_flip() +
+    ylab("Average sentiment score") + theme_bw()
+}
+
+
+Top20Characters = head(TopCharacters,20)$name
+
+SCWordsTop20Characters <- SC %>%
+  unnest_tokens(word, normalized_text) %>%
+  filter(name != "NA") %>%
+  filter( name %in% Top20Characters) %>%
+  count(name, word, sort = TRUE) %>%
+  ungroup()
+
+visualize_sentiments(SCWordsTop20Characters)
+
+```
+
+
+We observe the following 
+
+1. Edna Flanders has the most positive sentiment.            
+2. Marge Simpson is the most postive among the Simpsons.            
+3. Bart Simpson is the most negative among the Simpsons.          
+4. Dr. Julius Hilbert is the most negative among the Top 20 characters.     
+
+
+
+## Postive and Not So Postive Words
+
+The following graph shows the Twenty high positive and the negative words.               
+
+
+```{r, message=FALSE, warning=FALSE}
+
+contributions <- SC %>%
+  unnest_tokens(word, normalized_text) %>%
+  filter(name != "NA") %>%
+  count(name, word, sort = TRUE) %>%
+  ungroup() %>%
+  
+  inner_join(get_sentiments("afinn"), by = "word") %>%
+  group_by(word) %>%
+  summarize(occurences = n(),
+            contribution = sum(score))
+
+contributions %>%
+  top_n(20, abs(contribution)) %>%
+  mutate(word = reorder(word, contribution)) %>%
+  ggplot(aes(word, contribution, fill = contribution > 0)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() + theme_bw()
+
+```
+
+
+## Postive and Not So Postive Script Lines
+
+We examine the positive and the negative Script Lines.We filtered out messages that had **fewer than five words** that contributed to sentiment.                 
+
+```{r, message=FALSE, warning=FALSE}
+
+sentiment_lines  =  SC %>%
+  unnest_tokens(word, normalized_text) %>%
+  filter(name != "NA") %>%
+  inner_join(get_sentiments("afinn"), by = "word") %>%
+  group_by(id,word) %>%
+  summarize(sentiment = mean(score),
+            words = n()) %>%
+  ungroup() %>%
+  filter(words >= 5) 
+```
+
+The  scriptlines having **top Ten positive sentiments** are 
+
+```{r, result='asis', echo=FALSE}
+
+pos_sentiment_lines = sentiment_lines %>%
+  arrange(desc(sentiment))  %>%
+  top_n(10, sentiment) %>%
+  inner_join(SC, by = "id") %>%
+  select(name,normalized_text) %>%
+  rename(Text = normalized_text)
+  
+
+datatable(pos_sentiment_lines, style="bootstrap", class="table-condensed", options = list(dom = 'tp',scrollX = TRUE))
+
+```
+
+The  scriptlines having **top Ten NOT so positive sentiments** are 
+
+
+```{r, result='asis', echo=FALSE}
+
+neg_sentiment_lines = sentiment_lines %>%
+  arrange(sentiment)  %>%
+  top_n(-10, sentiment) %>%
+  inner_join(SC, by = "id") %>%
+  select(name,normalized_text) %>%
+  rename(Text = normalized_text)
+  
+
+datatable(neg_sentiment_lines, style="bootstrap", class="table-condensed", options = list(dom = 'tp',scrollX = TRUE))
+
+```
+
+
+# Topic Modelling
+
+
+```{r, message=FALSE, warning=FALSE}
+
+################################################################################################
+
+#Topic Modelling with Simpsons
+
+#########################################################################################
+SC = ScriptsCharacters %>%
+   select(id,name,normalized_text)
+
+corpus = Corpus(VectorSource(SC$normalized_text))
+
+# Pre-process data
+corpus <- tm_map(corpus, tolower)
+
+corpus <- tm_map(corpus, removePunctuation)
+
+corpus <- tm_map(corpus, removeWords, stopwords("english"))
+
+corpus <- tm_map(corpus, removeWords, UniqueLowIDF[1:500])
+
+corpus <- tm_map(corpus, stemDocument)
+
+dtm = DocumentTermMatrix(corpus)
+
+# Remove sparse terms
+dtm = removeSparseTerms(dtm, 0.997)
+
+# Create data frame
+labeledTerms = as.data.frame(as.matrix(dtm))
+
+labeledTerms = labeledTerms[rowSums(abs(labeledTerms)) != 0,]
+
+##############################################################################
+#LDA Modelling Starts
+###############################################################################
+
+# set a seed so that the output of the model is predictable
+simpsons_lda <- LDA(labeledTerms, k = 2, control = list(seed = 13))
+
+#The tidytext package provides this method for extracting the per-topic-per-word probabilities, 
+# called   β  (“beta”), from the model
+simpsons_topics <- tidy(simpsons_lda, matrix = "beta")
+
+simpsons_top_terms <- simpsons_topics %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+
+simpsons_top_terms %>%
+  mutate(term = reorder(term, beta)) %>%
+  ggplot(aes(term, beta, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  coord_flip() + theme_bw()
+
+
+```
+
+
+This visualization lets us understand the two topics that were extracted from the Script Lines. 
+
+The most common words in topic 1 include **mom,homi,milhous** which suggests it may represent the **Simpson** family topics.           
+
+Those most common in topic 2 include  **moe,work,hour** suggesting that this topic represents work related things.     
+
+One important observation about the words in each topic is that some words, such as **wonder**
+
+#Location of Characters{.tabset}
+
+```{r, message=FALSE, warning=FALSE}
+
+LocationCharacters = ScriptsCharacters %>%
+  group_by(name,raw_location_text) %>%
+  tally() 
+
+locationOfCharacters <- function(nameOfCharacter) {
+  SCLocation = LocationCharacters %>%
+    filter(name == nameOfCharacter) %>%
+    arrange(desc(n)) %>%
+    head(10)
+  
+  titlePlot = paste0(nameOfCharacter,"'s Location")
+  
+  ggplot(SCLocation, aes(x = reorder(raw_location_text, n), 
+                                                      y = n)) +
+    geom_bar(stat='identity',colour="white", fill = fillColor2) +
+    geom_text(aes(x = raw_location_text, y = 1, label = paste0("(",n,")",sep="")),
+              hjust=0, vjust=.5, size = 4, colour = 'black',
+              fontface = 'bold') +
+    labs(x = 'Counts in Locations', y = 'Locations', 
+         title = titlePlot) +
+    coord_flip() + 
+    theme_bw()
+}
+```
+
+## Homers Location
+
+```{r, message=FALSE, warning=FALSE}
+
+locationOfCharacters("Homer Simpson")
+
+```
+
+
+Homer is usually at **home , Moe's Tavern and his work place Springfield Nuclear Power Plant**.
+
+## Marge's Location
+
+```{r, message=FALSE, warning=FALSE}
+
+locationOfCharacters("Marge Simpson")
+
+```
+
+
+## Bart's Location
+
+```{r, message=FALSE, warning=FALSE}
+
+locationOfCharacters("Bart Simpson")
+
+```
+
+## Lisa's Location
+
+```{r, message=FALSE, warning=FALSE}
+
+locationOfCharacters("Lisa Simpson")
+
+```
+
+
+#Homer Simpson
+
+We examine Homer with the help of the **Word Cloud**, **The Postive and Not so Postive words** , and how the postivity differs from one **Location** to the other.                
+
+## Word Cloud
+
+```{r, message=FALSE, warning=FALSE}
+
+SC = ScriptsCharacters %>%
+   select(id,name,normalized_text)
+
+SC %>%
+  unnest_tokens(word, normalized_text) %>%
+  filter(name == "Homer Simpson") %>%
+  count(name, word, sort = TRUE) %>%
+  group_by(word) %>%
+  summarize(occurences = n()) %>%
+  
+  with(wordcloud(word, occurences, max.words = 50,colors=brewer.pal(8, "Dark2")))
+  
+
+```
+
+
+
+## Postive and Not So Postive Words of Homer Simpson
+
+The following graph shows the Twenty high positive and the negative words by **Homer Simpson**.            
+```{r, message=FALSE, warning=FALSE}
+
+contributions <- SC %>%
+  unnest_tokens(word, normalized_text) %>%
+  filter(name == "Homer Simpson") %>%
+  count(name, word, sort = TRUE) %>%
+  ungroup() %>%
+  
+  inner_join(get_sentiments("afinn"), by = "word") %>%
+  group_by(word) %>%
+  summarize(occurences = n(),
+            contribution = sum(score))
+
+contributions %>%
+  top_n(20, abs(contribution)) %>%
+  mutate(word = reorder(word, contribution)) %>%
+  head(20) %>%
+  ggplot(aes(word, contribution, fill = contribution > 0)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() + theme_bw()
+
+```
+
+
+## Sentiment Analysis based on location
+
+We wish to analyse the sentiments of  Homer based on the location.We want to find out whether Homer's positivity or negativity changes based on where he is located
+
+```{r, message=FALSE, warning=FALSE}
+
+visualize_sentiments_location <- function(SCWords) {
+  SCWords_sentiments <- SCWords %>%
+    inner_join(get_sentiments("afinn"), by = "word") %>%
+    group_by(raw_location_text) %>%
+    summarize(score = sum(score * n) / sum(n)) %>%
+    arrange(desc(score)) 
+  
+  SCWords_sentiments %>%
+    mutate(raw_location_text = reorder(raw_location_text, score)) %>%
+    ggplot(aes(raw_location_text, score)) +
+    geom_col(fill = fillColor2) +
+    coord_flip() +
+    ylab("Average sentiment score") + theme_bw()
+}
+
+nameOfCharacter = "Homer Simpson"
+
+HomerLocation = LocationCharacters %>%
+  filter(name == "Homer Simpson") %>%
+  arrange(desc(n)) %>%
+  head(10)
+
+SCWordsHomerSimpson <- ScriptsCharacters %>%
+  unnest_tokens(word, normalized_text) %>%
+  filter(name == nameOfCharacter) %>%
+  filter(raw_location_text %in% HomerLocation$raw_location_text) %>%
+  count(raw_location_text, word, sort = TRUE) %>%
+  ungroup()
+
+visualize_sentiments_location(SCWordsHomerSimpson)
+
+
+```
+
+Homer seems to be positive in the **Kitchen**, which is expected since the food is there. He has to postive in work and the positivity is shown in his work place **Springfield Nuclear Power Plant**. 
+
+
+#Best and the Worst Episodes
+
+```{r, message=FALSE, warning=FALSE}
+
+Episodes = read_csv("../input/simpsons_episodes.csv")
+
+Episodes$imdb_rating = as.numeric(Episodes$imdb_rating)
+
+BestEpisode =  Episodes %>%
+  arrange(desc(imdb_rating)) %>%
+   select(id,imdb_rating) %>%
+   head(1)
+
+WorstEpisode =  Episodes %>%
+  arrange((imdb_rating)) %>%
+  select(id,imdb_rating) %>%
+  head(1)
+
+
+  getEpisodeSentimentScore <- function(ScriptsCharacters, ID) {
+    SCBestEpisode = ScriptsCharacters %>%
+      
+      #BestEpisode$id
+      
+      filter(episode_id == ID ) %>% 
+      select(id,name,normalized_text)
+    
+    SCWords <- SCBestEpisode %>%
+      unnest_tokens(word, normalized_text) %>%
+      filter(name != "NA") %>%
+      count(name, word, sort = TRUE) %>%
+      ungroup()
+    
+    SCWords_sentiments <- SCWords %>%
+      inner_join(get_sentiments("afinn"), by = "word") %>%
+      summarize(score = sum(score * n) / sum(n))
+    
+    return(SCWords_sentiments$score)
+  }
+
+  
+
+
+```
+ 
+
+##Best Episode
+
+```{r, result='asis', echo=FALSE}
+
+
+
+getEpisodeSentimentScore(ScriptsCharacters,BestEpisode$id)
+
+```
+
+is the sentiment score for the **Best Episode**
+
+##Worst  Episode
+
+```{r, result='asis', echo=FALSE}
+
+getEpisodeSentimentScore(ScriptsCharacters,WorstEpisode$id)
+
+```
+
+is the sentiment score for the **Worst Episode**
+
+## Positive and Not So Positive Characters of the Best Episode
+
+```{r, message=FALSE, warning=FALSE}
+
+SC = ScriptsCharacters %>%
+      filter(episode_id == BestEpisode$id ) %>%
+      unnest_tokens(word, normalized_text) %>%
+      count(name, word, sort = TRUE) %>%
+      ungroup()
+
+visualize_sentiments(SC)
+
+
+```
+
+## Positive and Not So Positive Characters of the Worst Episode
+
+```{r, message=FALSE, warning=FALSE}
+
+SC = ScriptsCharacters %>%
+      filter(episode_id == WorstEpisode$id ) %>%
+      unnest_tokens(word, normalized_text) %>%
+      count(name, word, sort = TRUE) %>%
+      ungroup()
+
+visualize_sentiments(SC)
+
+```
+
+
+## Postive and Not So Postive Words of Best Episode
+
+The following graph shows the Twenty high positive and the negative words by **Best Episode**.            
+```{r, message=FALSE, warning=FALSE}
+
+positiveWordsBarGraph <- function(SC) {
+  contributions <- SC %>%
+    unnest_tokens(word, normalized_text) %>%
+    count(name, word, sort = TRUE) %>%
+    ungroup() %>%
+    
+    inner_join(get_sentiments("afinn"), by = "word") %>%
+    group_by(word) %>%
+    summarize(occurences = n(),
+              contribution = sum(score))
+  
+  contributions %>%
+    top_n(20, abs(contribution)) %>%
+    mutate(word = reorder(word, contribution)) %>%
+    head(20) %>%
+    ggplot(aes(word, contribution, fill = contribution > 0)) +
+    geom_col(show.legend = FALSE) +
+    coord_flip() + theme_bw()
+}
+
+SC = ScriptsCharacters %>%
+      
+      #BestEpisode$id
+      
+      filter(episode_id == BestEpisode$id ) %>% 
+      select(id,name,normalized_text)
+
+positiveWordsBarGraph(SC)
+
+```
+
+
+## Postive and Not So Postive Words of Worst Episode
+
+```{r, message=FALSE, warning=FALSE}
+
+SC = ScriptsCharacters %>%
+      
+      #BestEpisode$id
+      
+      filter(episode_id == WorstEpisode$id ) %>% 
+      select(id,name,normalized_text)
+
+positiveWordsBarGraph(SC)
+
+```
+
+
+#Modelling with XGBoost
+
+We do **Cross Validation** using Caret package.                     
+
+You can tune the parameters in your own machine for better results. The accuracy obtained through these parameters is quite good **0.7794007**.                        
+
+Lastly we wish to examine the feature importance of the variables. This is shown in the flipped bar chart.            
+
+```{r, message=FALSE, warning=FALSE}
+
+ScriptsCharactersSample =  ScriptsCharacters %>%
+  sample_n(5e3)
+
+corpus = Corpus(VectorSource(ScriptsCharactersSample$normalized_text))
+
+# Pre-process data
+corpus <- tm_map(corpus, tolower)
+
+corpus <- tm_map(corpus, removePunctuation)
+
+corpus <- tm_map(corpus, removeWords, stopwords("english"))
+
+corpus <- tm_map(corpus, stemDocument)
+
+dtm = DocumentTermMatrix(corpus)
+
+
+# Remove sparse terms
+dtm = removeSparseTerms(dtm, 0.997)
+
+# Create data frame
+labeledTerms = as.data.frame(as.matrix(dtm))
+
+ScriptsCharactersSample = ScriptsCharactersSample %>%
+  mutate(isHomer = 0)
+
+
+ScriptsCharactersSample = ScriptsCharactersSample %>%
+  mutate(isHomer=replace(isHomer, name == 'Homer Simpson', 1)) %>%
+  as.data.frame()
+
+labeledTerms$isHomer = as.factor(ScriptsCharactersSample$isHomer)
+
+
+
+
+## Preparing the features for the XGBoost Model
+
+features <- colnames(labeledTerms)
+
+for (f in features) {
+  if ((class(labeledTerms[[f]])=="factor") || (class(labeledTerms[[f]])=="character")) {
+    levels <- unique(labeledTerms[[f]])
+    labeledTerms[[f]] <- as.numeric(factor(labeledTerms[[f]], levels=levels))
+  }
+}
+
+
+## Creating the XGBoost Model
+
+labeledTerms$isHomer = as.factor(labeledTerms$isHomer)
+
+formula = isHomer ~ .
+
+fitControl <- trainControl(method="cv",number = 3)
+
+xgbGrid <- expand.grid(nrounds = 10,
+                       max_depth = 3,
+                       eta = .05,
+                       gamma = 0,
+                       colsample_bytree = .8,
+                       min_child_weight = 1,
+                       subsample = 1)
+
+
+set.seed(13)
+
+HomerXGB = train(formula, data = labeledTerms,
+               method = "xgbTree",trControl = fitControl,
+               tuneGrid = xgbGrid,na.action = na.pass)
+
+importance = varImp(HomerXGB)
+
+
+
+varImportance <- data.frame(Variables = row.names(importance[[1]]), 
+                            Importance = round(importance[[1]]$Overall,2))
+
+# Create a rank variable based on importance
+rankImportance <- varImportance %>%
+  mutate(Rank = paste0('#',dense_rank(desc(Importance)))) %>%
+  head(20)
+
+rankImportancefull = rankImportance
+
+ggplot(rankImportance, aes(x = reorder(Variables, Importance), 
+                           y = Importance)) +
+  geom_bar(stat='identity',colour="white", fill = fillColor) +
+  geom_text(aes(x = Variables, y = 1, label = Rank),
+            hjust=0, vjust=.5, size = 4, colour = 'black',
+            fontface = 'bold') +
+  labs(x = 'Variables', title = 'Relative Variable Importance') +
+  coord_flip() + 
+  theme_bw()
+
+```
+
+
+All the factors affecting the decision whether the ScriptLines are **spoken by Homer or not**  along with their ranks is provided below
+
+```{r, result='asis', echo=FALSE}
+
+datatable(rankImportancefull, style="bootstrap", class="table-condensed", options = list(dom = 'tp',scrollX = TRUE))
+```
+
+
+#Predictions using the glmnet Model
+
+```{r,message=FALSE,warning=FALSE}
+
+HomerGLM = train(formula, data = labeledTerms,
+                  method = "glmnet",trControl = fitControl,
+                  na.action = na.pass) 
+
+HomerGLM
+
+importanceGLM = varImp(HomerGLM)
+
+
+
+varImportanceGLM <- data.frame(Variables = row.names(importanceGLM[[1]]), 
+                            Importance = round(importanceGLM[[1]]$Overall,2))
+
+# Create a rank variable based on importance
+rankImportanceGLM <- varImportanceGLM %>%
+  mutate(Rank = paste0('#',dense_rank(desc(Importance)))) %>%
+  arrange(desc(Importance)) %>%
+  head(20)
+
+datatable(rankImportanceGLM, style="bootstrap", class="table-condensed", options = list(dom = 'tp',scrollX = TRUE))
+
+
+ggplot(rankImportanceGLM, aes(x = reorder(Variables, Importance), 
+                           y = Importance)) +
+  geom_bar(stat='identity',colour="white", fill = fillColor) +
+  geom_text(aes(x = Variables, y = 1, label = Rank),
+            hjust=0, vjust=.5, size = 4, colour = 'black',
+            fontface = 'bold') +
+  labs(x = 'Variables', title = 'Relative Variable Importance') +
+  coord_flip() + 
+  theme_bw()
+
+```
+
+
