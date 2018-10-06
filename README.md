@@ -45,7 +45,11 @@ Til now, we have explored the most important words for a character. Now, we will
 8.1 Postive Characters and Not so Positive Characters
 We will use the AFINN sentiment lexicon, which provides numeric positivity scores for each word, and visualize it with a bar plot.We limit the sentiment analysis to the Top 20 characters who have spoken the most in the episodes.
 
+8.2 Postive and Not So Postive Words
+
 8.3 Postive and Not So Postive Script Lines
+
+9 Topic Modelling
 
 10 Location of Characters
 
