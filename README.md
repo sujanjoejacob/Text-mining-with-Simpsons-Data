@@ -68,12 +68,10 @@ We will use the AFINN sentiment lexicon, which provides numeric positivity score
 12 Best and the Worst Episodes
 
 12.1 Best Episode
-###### [1] 0.8309179
-is the sentiment score for the Best Episode
+###### [1] 0.8309179 is the sentiment score for the Best Episode
 
 12.2 Worst Episode
-###### [1] 0.4871795
-is the sentiment score for the Worst Episode
+###### [1] 0.4871795 is the sentiment score for the Worst Episode
 
 12.3 Positive and Not So Positive Characters of the Best Episode
 
